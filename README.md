@@ -1,4 +1,4 @@
-## Honeydew - v0.7.2
+## Honeydew - v0.8.0
 ##### Jonathan Vasquez (fearedbliss)
 
 ## Description
@@ -65,31 +65,24 @@ The above should yield a snapshot similar to the following:
 ## Options
 
 ```
-# ./honeydew -h
+USAGE:
+    honeydew [FLAGS] [OPTIONS] --pool <pool>
 
-Usage:
-  ./honeydew [OPTIONS]
+FLAGS:
+    -n, --dry-run          Performs a dry run. No deletions will occur.
+    -h, --help             Prints help information
+    -f, --no-confirm       Deletes snapshots without confirmation. Used primarily for cron.
+    -c, --show-config      Displays the full configuration options used by the application.
+    -x, --show-excluded    Show snapshots that will be excluded.
+    -s, --show-queued      Show snapshots that will be removed.
+    -V, --version          Prints version information
 
-Honeydew: A simple snapshot cleaner for ZFS.
-
-Optional arguments:
-  -h,--help             Show this help message and exit
-  -p,--pool POOL        The pool you want to clean.
-  -d,--date DATE        The slice date that you want to use as your end point
-                        for snapshot deletions.
-  -e,--exclude-file EXCLUDE_FILE
-                        Excludes the list of snapshots in this file (one
-                        snapshot per line).
-  -s,--show-queued      Show snapshots that will be removed.
-  -x,--show-excluded    Show snapshots that will be excluded.
-  -n,--dry-run          Performs a dry run. No deletions will occur.
-  -i,--per-iteration PER_ITERATION
-                        Number of snapshots to delete per iteration.
-  -f,--no-confirm       Should confirmation be prompted before deleting the
-                        snapshots? Used primarily for cron.
-  -l,--label LABEL      The label of the snapshots that should be cleaned.
-  -c,--show-config      Displays the full configuration options used by the
-                        application.
+OPTIONS:
+    -d, --date <date>                      The slice date that you want to use as your end point for snapshot deletions.
+    -e, --exclude-file <exclude-file>      Excludes the list of snapshots in this file (one snapshot per line).
+    -l, --label <label>                    The label of the snapshots that should be cleaned.
+    -i, --per-iteration <per-iteration>    Number of snapshots to delete per iteration.
+    -p, --pool <pool>                      The pool you want to clean.
 ```
                         
 ## Build

@@ -31,7 +31,7 @@ pub struct Config {
     show_excluded: bool,
     dry_run: bool,
     iteration_count: u16,
-    confirm: bool,
+    no_confirm: bool,
     label: String,
     show_config: bool,
 }
@@ -39,20 +39,17 @@ pub struct Config {
 impl Config {
     // Integration Tested Only
     pub fn new(
-        pool: String,
-        date: String,
-        exclude_file: Option<String>,
+        pool: &str,
+        date: &str,
+        exclude_file: &str,
         show_queued: bool,
         show_excluded: bool,
         dry_run: bool,
         iteration_count: u16,
-        confirm: bool,
-        label: String,
+        no_confirm: bool,
+        label: &str,
         show_config: bool,
     ) -> Config {
-        if pool.is_empty() {
-            panic!("Pool name not provided. Example: -p tank");
-        }
         let cutoff_date: DateTime<Local>;
         if date.is_empty() {
             cutoff_date = get_cutoff_date(Local::now());
@@ -63,9 +60,9 @@ impl Config {
             };
         }
 
-        let exclude_file = match exclude_file {
-            Some(v) => v,
-            None => "".to_string(),
+        let exclude_file = match exclude_file.is_empty() {
+            true => "".to_string(),
+            false => exclude_file.to_string(),
         };
         if !exclude_file.is_empty() {
             if !Path::new(&exclude_file).exists() {
@@ -73,15 +70,15 @@ impl Config {
             }
         }
         Config {
-            pool,
+            pool: pool.to_string(),
             date: cutoff_date,
             exclude_file,
             show_queued,
             show_excluded,
             dry_run,
             iteration_count,
-            confirm,
-            label,
+            no_confirm,
+            label: label.to_string(),
             show_config,
         }
     }
@@ -89,22 +86,17 @@ impl Config {
     pub fn print(&self) {
         println!("Configuration");
         println!("----------------");
+        println!("Pool: {}", self.pool());
+        println!("Cut Off Date: {}", self.date().format(SNAPSHOT_FORMAT));
+        println!("Exclude File: {}", self.exclude_file());
+        println!("Label (Filter): {}", self.label());
         if self.should_show_config() {
-            println!("Pool: {}", self.pool());
-            println!("Cut Off Date: {}", self.date().format(SNAPSHOT_FORMAT));
-            println!("Exclude File: {}", self.exclude_file());
             println!("Show Queued: {}", self.should_show_queued());
             println!("Show Excluded: {}", self.should_show_excluded());
             println!("Dry Run: {}", self.should_dry_run());
             println!("Iteration Amount (Batch): {}", self.iteration_count());
-            println!("Ask For Confirmation: {}", self.confirm());
-            println!("Label (Filter): {}", self.label());
+            println!("No Confirmation: {}", self.no_confirm());
             println!("Show Config: {}", self.should_show_config());
-        } else {
-            println!("Pool: {}", self.pool());
-            println!("Cut Off Date: {}", self.date().format(SNAPSHOT_FORMAT));
-            println!("Exclude File: {}", self.exclude_file());
-            println!("Label (Filter): {}", self.label());
         }
         println!("");
     }
@@ -137,8 +129,8 @@ impl Config {
         self.iteration_count
     }
 
-    pub fn confirm(&self) -> bool {
-        self.confirm
+    pub fn no_confirm(&self) -> bool {
+        self.no_confirm
     }
 
     pub fn label(&self) -> &String {

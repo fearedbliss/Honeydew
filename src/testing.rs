@@ -34,18 +34,7 @@ pub mod utility {
     }
 
     pub fn get_fake_config(pool: &str, date: &str, label: &str) -> Config {
-        Config::new(
-            pool.to_string(),
-            date.to_string(),
-            None,
-            false,
-            false,
-            false,
-            100,
-            true,
-            label.to_string(),
-            false,
-        )
+        Config::new(pool, date, "", false, false, false, 100, true, label, false)
     }
 
     pub fn create_snapshot(dataset: &str, time: &str, label: &str) -> Snapshot {

@@ -1,6 +1,6 @@
 [package]
 name = "honeydew"
-version = "0.7.2"
+version = "0.8.0"
 authors = ["Jonathan Vasquez <jon@xyinn.org>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,4 +10,4 @@ description = "A simple snapshot cleaner for ZFS."
 
 [dependencies]
 chrono = "0.4"
-argparse = "0.2.2"
+clap = "2.33.3"

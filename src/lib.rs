@@ -11,13 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use clap::{App, Arg};
 
 pub mod enums;
 pub mod structs;
 pub mod testing;
 pub mod traits;
 
-use argparse::{ArgumentParser, Store, StoreFalse, StoreTrue};
 use chrono::prelude::*;
 use chrono::Duration;
 use enums::SystemResult;
@@ -29,19 +29,26 @@ use traits::Communicator;
 
 const SNAPSHOT_FORMAT: &str = "%Y-%m-%d-%H%M-%S";
 
+const APP_NAME: &str = "Honeydew";
+const APP_VERSION: &str = "0.8.0";
+const APP_AUTHOR: &str = "Jonathan Vasquez <jon@xyinn.org>";
+const APP_DESCRIPTION: &str = "A simple snapshot cleaner for ZFS.";
+const APP_LICENSE: &str = "Apache License 2.0";
+
+// Integration Tested Only
 fn print_header() {
     println!("------------------------------");
-    println!("Honeydew - v0.7.2");
-    println!("Jonathan Vasquez <jon@xyinn.org>");
-    println!("Apache License 2.0");
+    println!("{} - v{}", APP_NAME, APP_VERSION);
+    println!("{}", APP_AUTHOR);
+    println!("{}", APP_LICENSE);
     println!("------------------------------\n");
 }
 
 // Integration Tested Only
 pub fn run() {
+    let config = parse_arguments();
     print_header();
     let communicator = RealCommunicator;
-    let config = parse_arguments();
 
     config.print();
 
@@ -85,7 +92,7 @@ pub fn run() {
             return;
         }
 
-        if !config.confirm() {
+        if config.no_confirm() {
             destroy_snapshots(&communicator, &stale_snapshots, config.iteration_count());
             return;
         }
@@ -107,81 +114,105 @@ pub fn run() {
 
 // Integration Tested Only
 pub fn parse_arguments() -> Config {
-    let mut date_string = String::new();
-    let mut pool_name = String::new();
-    let mut exclude_file = String::new();
-    let mut show_queued = false;
-    let mut show_excluded = false;
-    let mut dry_run = false;
-    let mut iteration_count = 100;
-    let mut confirm = true;
-    let mut label = String::new();
-    let mut show_config = false;
+    const DEFAULT_ITERATIONS: u16 = 100;
 
-    {
-        let mut parser = ArgumentParser::new();
-        parser.set_description("Honeydew: A simple snapshot cleaner for ZFS.");
-        parser
-            .refer(&mut pool_name)
-            .add_option(&["-p", "--pool"], Store, "The pool you want to clean.")
-            .required();
-        parser.refer(&mut date_string).add_option(
-            &["-d", "--date"],
-            Store,
-            "The slice date that you want to use as your end point for snapshot deletions.",
-        );
-        parser.refer(&mut exclude_file).add_option(
-            &["-e", "--exclude-file"],
-            Store,
-            "Excludes the list of snapshots in this file (one snapshot per line).",
-        );
-        parser.refer(&mut show_queued).add_option(
-            &["-s", "--show-queued"],
-            StoreTrue,
-            "Show snapshots that will be removed.",
-        );
-        parser.refer(&mut show_excluded).add_option(
-            &["-x", "--show-excluded"],
-            StoreTrue,
-            "Show snapshots that will be excluded.",
-        );
-        parser.refer(&mut dry_run).add_option(
-            &["-n", "--dry-run"],
-            StoreTrue,
-            "Performs a dry run. No deletions will occur.",
-        );
-        parser.refer(&mut iteration_count).add_option(
-            &["-i", "--per-iteration"],
-            Store,
-            "Number of snapshots to delete per iteration.",
-        );
-        parser.refer(&mut confirm).add_option(
-            &["-f", "--no-confirm"],
-            StoreFalse,
-            "Should confirmation be prompted before deleting the snapshots? Used primarily for cron.",
-        );
-        parser.refer(&mut label).add_option(
-            &["-l", "--label"],
-            Store,
-            "The label of the snapshots that should be cleaned.",
-        );
-        parser.refer(&mut show_config).add_option(
-            &["-c", "--show-config"],
-            StoreTrue,
-            "Displays the full configuration options used by the application.",
-        );
-        parser.parse_args_or_exit();
-    }
+    let matches = App::new(APP_NAME)
+        .version(APP_VERSION)
+        .author(APP_AUTHOR)
+        .about(APP_DESCRIPTION)
+        .arg(
+            Arg::with_name("pool")
+                .short("p")
+                .long("pool")
+                .help("The pool you want to clean.")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("date")
+                .short("d")
+                .long("date")
+                .help(
+                    "The slice date that you want to use as your end point for snapshot deletions.",
+                )
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("exclude-file")
+                .short("e")
+                .long("exclude-file")
+                .help("Excludes the list of snapshots in this file (one snapshot per line).")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("show-queued")
+                .short("s")
+                .long("show-queued")
+                .help("Show snapshots that will be removed."),
+        )
+        .arg(
+            Arg::with_name("show-excluded")
+                .short("x")
+                .long("show-excluded")
+                .help("Show snapshots that will be excluded."),
+        )
+        .arg(
+            Arg::with_name("dry-run")
+                .short("n")
+                .long("dry-run")
+                .help("Performs a dry run. No deletions will occur."),
+        )
+        .arg(
+            Arg::with_name("per-iteration")
+                .short("i")
+                .long("per-iteration")
+                .help("Number of snapshots to delete per iteration.")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("no-confirm")
+                .short("f")
+                .long("no-confirm")
+                .help("Deletes snapshots without confirmation. Used primarily for cron."),
+        )
+        .arg(
+            Arg::with_name("label")
+                .short("l")
+                .long("label")
+                .help("The label of the snapshots that should be cleaned.")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("show-config")
+                .short("c")
+                .long("show-config")
+                .help("Displays the full configuration options used by the application."),
+        )
+        .get_matches();
+
+    let pool = matches.value_of("pool").unwrap();
+    let label = matches.value_of("label").unwrap_or("");
+    let exclude_file = matches.value_of("exclude-file").unwrap_or("");
+    let show_config = matches.is_present("show-config");
+    let date = matches.value_of("date").unwrap_or("");
+    let no_confirm = matches.is_present("no-confirm");
+    let iteration_count: u16 = match matches.value_of("per-iteration") {
+        Some(v) => v.parse().unwrap(),
+        None => DEFAULT_ITERATIONS,
+    };
+    let dry_run = matches.is_present("dry-run");
+    let show_queued = matches.is_present("show-queued");
+    let show_excluded = matches.is_present("show-excluded");
 
     Config::new(
-        pool_name,
-        date_string,
-        Some(exclude_file),
+        pool,
+        date,
+        exclude_file,
         show_queued,
         show_excluded,
         dry_run,
         iteration_count,
-        confirm,
+        no_confirm,
         label,
         show_config,
     )
@@ -354,7 +385,8 @@ fn build_list_to_delete(snapshots: &Vec<&Snapshot>) -> String {
     names
 }
 
-fn build_destroy_and_clear<'a, T>(
+// Builds the list of snapshots to destroy and destroys it.
+fn build_and_destroy<'a, T>(
     communicator: &T,
     snapshots: &Vec<&'a Snapshot>,
     numerator: f64,
@@ -363,20 +395,7 @@ fn build_destroy_and_clear<'a, T>(
 where
     T: Communicator,
 {
-    let deleted_snapshots = build_and_destroy(communicator, snapshots);
-    let percent_completed = calculate_percentage(numerator, denominator);
-    println!(
-        "Deleted | {:6.2}% <=> [{}/{}]",
-        percent_completed, numerator, denominator,
-    );
-    deleted_snapshots
-}
-
-fn build_and_destroy<'a, T>(communicator: &T, snapshots: &Vec<&'a Snapshot>) -> Vec<&'a Snapshot>
-where
-    T: Communicator,
-{
-    match communicator.destroy_snapshots(build_list_to_delete(&snapshots)) {
+    let deleted_snapshots = match communicator.destroy_snapshots(build_list_to_delete(&snapshots)) {
         Err(e) => panic!("{:?}", e),
         Ok(_) => {
             let mut deleted_snapshots: Vec<&Snapshot> = Vec::new();
@@ -385,7 +404,14 @@ where
             }
             deleted_snapshots
         }
-    }
+    };
+
+    let percent_completed = calculate_percentage(numerator, denominator);
+    println!(
+        "Deleted | {:6.2}% <=> [{}/{}]",
+        percent_completed, numerator, denominator,
+    );
+    deleted_snapshots
 }
 
 fn get_datasets(snapshots: &Vec<Snapshot>) -> HashSet<String> {
@@ -408,7 +434,7 @@ fn get_cutoff_date(time: DateTime<Local>) -> DateTime<Local> {
 fn calculate_percentage(numerator: f64, denominator: f64) -> f64 {
     numerator / denominator * 100.0
 }
-// NOTE: Having too high of a snapshot deleting amount seems to cause zfs to lock up in some cases (ZFS/Linux Issue).
+
 // Cleaning: zfs destroy <dataset>@<label1>,<label2>,<label3> (Allows us to batch pass the snapshots. Faster.)
 fn destroy_snapshots<'a, T>(
     communicator: &T,
@@ -418,10 +444,25 @@ fn destroy_snapshots<'a, T>(
 where
     T: Communicator,
 {
-    let mut total_processed = 0;
-    let snapshot_count = snapshots.len();
+    let mut total_processed: u16 = 0;
+    let snapshot_count = snapshots.len() as u16;
     let mut queued_snapshots: Vec<&Snapshot> = Vec::new();
     let mut deleted_snapshots: Vec<&Snapshot> = Vec::new();
+
+    let cleaner = |total_processed: &mut u16,
+                   queued_snapshots: &mut Vec<&'a Snapshot>,
+                   communicator: &T,
+                   snapshot_count: u16,
+                   deleted_snapshots: &mut Vec<&'a Snapshot>| {
+        *total_processed += queued_snapshots.len() as u16;
+        build_and_destroy(
+            communicator,
+            &queued_snapshots,
+            *total_processed as f64,
+            snapshot_count as f64,
+        );
+        deleted_snapshots.append(queued_snapshots);
+    };
 
     // Snapshots deleted per round need to be all in the same dataset
     // since it will be batched to ZFS for optimization.
@@ -432,32 +473,33 @@ where
             .filter(|snapshot| snapshot.dataset() == &dataset)
             .collect();
 
-        for (index, snapshot) in snapshots_for_dataset.iter().enumerate() {
+        // Load up all the snapshots up to the iteration amount. If the
+        // iteration amount is greater than the total amount of snapshots
+        // that are listed for this dataset, then they will all end up being
+        // cleaned when we empty the chamber, since the % code below will
+        // never fire. This is by design.
+        for snapshot in snapshots_for_dataset.iter() {
             queued_snapshots.push(snapshot);
-            if (total_processed as u16 % iteration_amount == 0)
-                && (index != 0 || iteration_amount == 1)
-            {
-                total_processed += queued_snapshots.len();
-                build_destroy_and_clear(
+            if queued_snapshots.len() as u16 % iteration_amount == 0 {
+                cleaner(
+                    &mut total_processed,
+                    &mut queued_snapshots,
                     communicator,
-                    &queued_snapshots,
-                    total_processed as f64,
-                    snapshot_count as f64,
+                    snapshot_count,
+                    &mut deleted_snapshots,
                 );
-                deleted_snapshots.append(&mut queued_snapshots);
             }
+        }
 
-            // If we are about to be done with this dataset, then clean the chamber if needed. ;..;
-            if index + 1 == snapshots_for_dataset.len() && queued_snapshots.len() != 0 {
-                total_processed += queued_snapshots.len();
-                build_destroy_and_clear(
-                    communicator,
-                    &queued_snapshots,
-                    total_processed as f64,
-                    snapshot_count as f64,
-                );
-                deleted_snapshots.append(&mut queued_snapshots);
-            }
+        // Empty the chamber ;..;
+        if queued_snapshots.len() != 0 {
+            cleaner(
+                &mut total_processed,
+                &mut queued_snapshots,
+                communicator,
+                snapshot_count,
+                &mut deleted_snapshots,
+            );
         }
 
         println!("");
