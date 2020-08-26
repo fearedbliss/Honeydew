@@ -14,7 +14,14 @@
 
 pub mod utility {
     use super::super::*;
-    pub struct FakeCommunicator;
+    pub struct FakeCommunicator {
+        does_file_exist: bool,
+    }
+    impl FakeCommunicator {
+        pub fn new(does_file_exist: bool) -> FakeCommunicator {
+            FakeCommunicator { does_file_exist }
+        }
+    }
     impl Communicator for FakeCommunicator {
         fn get_snapshots(&self) -> SystemResult {
             Ok("boot@2020-08-12-1237-49-CHECKPOINT\n\
@@ -31,10 +38,25 @@ pub mod utility {
             tank/gentoo/os@2020-07-13-2354-09-CHECKPOINT\n"
                 .to_string())
         }
+        fn does_file_exist(&self, _filename: &str) -> bool {
+            self.does_file_exist
+        }
     }
 
     pub fn get_fake_config(pool: &str, date: &str, label: &str) -> Config {
-        Config::new(pool, date, "", false, false, false, 100, true, label, false)
+        Config::new(
+            &FakeCommunicator::new(true),
+            pool,
+            date,
+            "",
+            false,
+            false,
+            false,
+            100,
+            true,
+            label,
+            false,
+        )
     }
 
     pub fn create_snapshot(dataset: &str, time: &str, label: &str) -> Snapshot {

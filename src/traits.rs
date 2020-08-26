@@ -24,4 +24,7 @@ pub trait Communicator {
     fn get_excluded_snapshots(&self, _exclude_file: &str) -> SystemResult {
         panic!("Not Implemented");
     }
+    fn does_file_exist(&self, _filename: &str) -> bool {
+        panic!("Not Implemented");
+    }
 }

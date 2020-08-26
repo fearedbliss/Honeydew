@@ -46,9 +46,9 @@ fn print_header() {
 
 // Integration Tested Only
 pub fn run() {
-    let config = parse_arguments();
-    print_header();
     let communicator = RealCommunicator;
+    let config = parse_arguments(&communicator);
+    print_header();
 
     config.print();
 
@@ -113,7 +113,10 @@ pub fn run() {
 }
 
 // Integration Tested Only
-pub fn parse_arguments() -> Config {
+/// Parses the command line arguments and returns the configuration.
+///
+/// This function will panic if you pass it an exclude file that does not exist.
+pub fn parse_arguments<T: Communicator>(communicator: &T) -> Config {
     const DEFAULT_ITERATIONS: u16 = 100;
 
     let matches = App::new(APP_NAME)
@@ -205,6 +208,7 @@ pub fn parse_arguments() -> Config {
     let show_excluded = matches.is_present("show-excluded");
 
     Config::new(
+        communicator,
         pool,
         date,
         exclude_file,
@@ -219,14 +223,11 @@ pub fn parse_arguments() -> Config {
 }
 
 /// Returns all the snapshots that will be deleted
-fn get_relevant_snapshots<T>(
+fn get_relevant_snapshots<T: Communicator>(
     communicator: &T,
     config: &Config,
     excluded_snapshots: &Vec<Snapshot>,
-) -> Vec<Snapshot>
-where
-    T: Communicator,
-{
+) -> Vec<Snapshot> {
     let unparsed_snapshots = get_snapshots(communicator);
     let parsed_snapshots = get_parsed_snapshots(unparsed_snapshots);
     let snapshots = get_snapshots_for(&config.pool(), config.label(), parsed_snapshots);
@@ -245,10 +246,7 @@ fn remove_excluded_snapshots(
 }
 
 /// Retrieves all of the excluded snapshots that are relevant to this pool.
-fn get_excluded_snapshots<T>(communicator: &T, config: &Config) -> Vec<Snapshot>
-where
-    T: Communicator,
-{
+fn get_excluded_snapshots<T: Communicator>(communicator: &T, config: &Config) -> Vec<Snapshot> {
     let results = communicator.get_excluded_snapshots(config.exclude_file());
     get_snapshots_for(
         config.pool(),
@@ -345,13 +343,8 @@ fn get_stale_snapshots(snapshots: Vec<Snapshot>, cutoff_date: &DateTime<Local>) 
         .collect()
 }
 
-fn get_snapshots<T>(communicator: &T) -> Vec<String>
-where
-    T: Communicator,
-{
-    let results = communicator.get_snapshots();
-
-    get_snapshots_base(results)
+fn get_snapshots<T: Communicator>(communicator: &T) -> Vec<String> {
+    get_snapshots_base(communicator.get_snapshots())
 }
 
 fn get_snapshots_base(results: SystemResult) -> Vec<String> {
@@ -385,16 +378,13 @@ fn build_list_to_delete(snapshots: &Vec<&Snapshot>) -> String {
     names
 }
 
-// Builds the list of snapshots to destroy and destroys it.
-fn build_and_destroy<'a, T>(
+/// Builds the list of snapshots to destroy and destroys them.
+fn build_and_destroy<'a, T: Communicator>(
     communicator: &T,
     snapshots: &Vec<&'a Snapshot>,
     numerator: f64,
     denominator: f64,
-) -> Vec<&'a Snapshot>
-where
-    T: Communicator,
-{
+) -> Vec<&'a Snapshot> {
     let deleted_snapshots = match communicator.destroy_snapshots(build_list_to_delete(&snapshots)) {
         Err(e) => panic!("{:?}", e),
         Ok(_) => {
@@ -437,17 +427,16 @@ fn calculate_percentage(numerator: f64, denominator: f64) -> f64 {
 }
 
 /// Destroys the ZFS snapshots.
+///
 /// For faster deletions, zfs will be sent a list of snapshots in zfs' desired
 /// format in order to send a bigger batch to zfs at a time.
+///
 /// Example: zfs destroy <dataset>@<label1>,<label2>,<label3>
-fn destroy_snapshots<'a, T>(
+fn destroy_snapshots<'a, T: Communicator>(
     communicator: &T,
     snapshots: &'a Vec<Snapshot>,
     iteration_amount: u16,
-) -> Vec<&'a Snapshot>
-where
-    T: Communicator,
-{
+) -> Vec<&'a Snapshot> {
     let mut total_processed: u16 = 0;
     let snapshot_count = snapshots.len() as u16;
     let mut queued_snapshots: Vec<&Snapshot> = Vec::new();
@@ -526,7 +515,7 @@ where
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use testing::utility;
     use testing::utility::{create_snapshot, FakeCommunicator};
@@ -633,7 +622,10 @@ mod test {
             "tank/gentoo/os@2020-08-13-2354-09-CHECKPOINT",
         ];
 
-        assert_eq!(expected_snapshots, get_snapshots(&FakeCommunicator));
+        assert_eq!(
+            expected_snapshots,
+            get_snapshots(&FakeCommunicator::new(true))
+        );
     }
 
     #[test]
@@ -643,7 +635,7 @@ mod test {
         assert_eq!(
             expected_snapshots,
             get_excluded_snapshots(
-                &FakeCommunicator,
+                &FakeCommunicator::new(true),
                 &utility::get_fake_config("boot", "2020-05-01-1200-00", "")
             )
         );
@@ -760,7 +752,7 @@ mod test {
         ];
 
         let mut expected_results: Vec<&Snapshot> = snapshots.iter().collect();
-        let mut results = destroy_snapshots(&FakeCommunicator, &snapshots, 100);
+        let mut results = destroy_snapshots(&FakeCommunicator::new(true), &snapshots, 100);
 
         expected_results.sort();
         results.sort();

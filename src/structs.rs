@@ -37,8 +37,8 @@ pub struct Config {
 }
 
 impl Config {
-    // Integration Tested Only
-    pub fn new(
+    pub fn new<T: Communicator>(
+        communicator: &T,
         pool: &str,
         date: &str,
         exclude_file: &str,
@@ -59,20 +59,15 @@ impl Config {
                 Ok(v) => v,
             };
         }
-
-        let exclude_file = match exclude_file.is_empty() {
-            true => "".to_string(),
-            false => exclude_file.to_string(),
-        };
         if !exclude_file.is_empty() {
-            if !Path::new(&exclude_file).exists() {
+            if !communicator.does_file_exist(&exclude_file) {
                 panic!("File doesn't exist: {}", exclude_file);
             }
         }
         Config {
             pool: pool.to_string(),
             date: cutoff_date,
-            exclude_file,
+            exclude_file: exclude_file.to_string(),
             show_queued,
             show_excluded,
             dry_run,
@@ -257,11 +252,14 @@ impl Communicator for RealCommunicator {
             Ok(_) => Ok(contents),
         }
     }
+    fn does_file_exist(&self, filename: &str) -> bool {
+        Path::new(filename).exists()
+    }
 }
 
 #[cfg(test)]
-mod test {
-    use super::super::testing::utility::create_snapshot;
+mod tests {
+    use super::super::testing::utility::*;
     use super::*;
 
     mod snapshot {
@@ -277,6 +275,59 @@ mod test {
             let cutoff_date = Local.ymd(2020, 08, 15).and_hms(23, 54, 09);
             let snapshot = create_snapshot("tank/gentoo/os", "2020-08-15-2354-09", "CHECKPOINT");
             assert_eq!(snapshot.is_stale(&cutoff_date), false);
+        }
+    }
+
+    mod config {
+        use super::*;
+        #[test]
+        fn get_config() {
+            let communicator = FakeCommunicator::new(true);
+            let date = "2099-01-01-0000-00";
+            let config = Config::new(
+                &communicator,
+                "tank",
+                date,
+                "some-file",
+                true,
+                true,
+                true,
+                59,
+                true,
+                "ANIMALS",
+                true,
+            );
+            assert_eq!(config.pool(), "tank");
+            assert_eq!(
+                config.date(),
+                &Local.datetime_from_str(date, SNAPSHOT_FORMAT).unwrap()
+            );
+            assert_eq!(config.exclude_file(), "some-file");
+            assert_eq!(config.should_show_queued(), true);
+            assert_eq!(config.should_show_excluded(), true);
+            assert_eq!(config.should_dry_run(), true);
+            assert_eq!(config.iteration_count(), 59);
+            assert_eq!(config.no_confirm(), true);
+            assert_eq!(config.label(), "ANIMALS");
+            assert_eq!(config.should_show_config(), true);
+        }
+        #[test]
+        #[should_panic]
+        fn config_if_file_doesnt_exist_should_panic() {
+            let communicator = FakeCommunicator::new(false);
+            Config::new(
+                &communicator,
+                "tank",
+                "2099-01-01-0000-00",
+                "some-file",
+                true,
+                true,
+                true,
+                59,
+                true,
+                "ANIMALS",
+                true,
+            );
         }
     }
 }
