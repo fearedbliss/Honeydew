@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use clap::{App, Arg};
 
 pub mod enums;
 pub mod structs;
@@ -20,6 +19,7 @@ pub mod traits;
 
 use chrono::prelude::*;
 use chrono::Duration;
+use clap::{App, Arg};
 use enums::SystemResult;
 use std::collections::HashSet;
 use std::io;
@@ -30,9 +30,9 @@ use traits::Communicator;
 const SNAPSHOT_FORMAT: &str = "%Y-%m-%d-%H%M-%S";
 
 const APP_NAME: &str = "Honeydew";
-const APP_VERSION: &str = "0.8.0";
-const APP_AUTHOR: &str = "Jonathan Vasquez <jon@xyinn.org>";
-const APP_DESCRIPTION: &str = "A simple snapshot cleaner for ZFS.";
+const APP_VERSION: &str = clap::crate_version!();
+const APP_AUTHOR: &str = clap::crate_authors!();
+const APP_DESCRIPTION: &str = clap::crate_description!();
 const APP_LICENSE: &str = "Apache License 2.0";
 
 // Integration Tested Only
@@ -427,7 +427,8 @@ fn get_datasets(snapshots: &Vec<Snapshot>) -> HashSet<String> {
 }
 
 fn get_cutoff_date(time: DateTime<Local>) -> DateTime<Local> {
-    time - Duration::days(30)
+    const DEFAULT_CUTOFF: i64 = 30;
+    time - Duration::days(DEFAULT_CUTOFF)
 }
 
 /// Calculates the percentage complete
@@ -435,7 +436,10 @@ fn calculate_percentage(numerator: f64, denominator: f64) -> f64 {
     numerator / denominator * 100.0
 }
 
-// Cleaning: zfs destroy <dataset>@<label1>,<label2>,<label3> (Allows us to batch pass the snapshots. Faster.)
+/// Destroys the ZFS snapshots.
+/// For faster deletions, zfs will be sent a list of snapshots in zfs' desired
+/// format in order to send a bigger batch to zfs at a time.
+/// Example: zfs destroy <dataset>@<label1>,<label2>,<label3>
 fn destroy_snapshots<'a, T>(
     communicator: &T,
     snapshots: &'a Vec<Snapshot>,

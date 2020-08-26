@@ -1,4 +1,4 @@
-## Honeydew - v0.8.0
+## Honeydew - v0.8.1
 ##### Jonathan Vasquez (fearedbliss)
 
 ## Description

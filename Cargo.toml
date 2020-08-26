@@ -1,6 +1,6 @@
 [package]
 name = "honeydew"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Jonathan Vasquez <jon@xyinn.org>"]
 edition = "2018"
 license = "Apache-2.0"

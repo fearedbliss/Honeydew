@@ -267,13 +267,13 @@ mod test {
     mod snapshot {
         use super::*;
         #[test]
-        fn is_stale_if_old_should_return_false() {
+        fn is_stale_if_old_should_return_true() {
             let cutoff_date = Local.ymd(2020, 08, 15).and_hms(23, 54, 09);
             let snapshot = create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT");
             assert!(snapshot.is_stale(&cutoff_date));
         }
         #[test]
-        fn is_stale_if_new_should_return_true() {
+        fn is_stale_if_new_should_return_false() {
             let cutoff_date = Local.ymd(2020, 08, 15).and_hms(23, 54, 09);
             let snapshot = create_snapshot("tank/gentoo/os", "2020-08-15-2354-09", "CHECKPOINT");
             assert_eq!(snapshot.is_stale(&cutoff_date), false);
