@@ -1,9 +1,9 @@
-## Honeydew - v0.8.2
+## Honeydew - 1.0.0
 ##### Jonathan Vasquez (fearedbliss)
 
 ## Description
 
-A simple snapshot cleaner for ZFS.
+A simple snapshot cleaner for OpenZFS.
 
 ## Usage
 
@@ -36,12 +36,12 @@ delete snapshots that have the **`ANIMALS`** tag:
 
 ## Format
 
-For simplicity, there is only one snapshot format allowed/accepted, which is in
+For simplicity, there is only one snapshot format accepted, which is in
 the following format:
 
 **`YYYY-mm-dd-HHMM-ss-LABEL`** => **`2020-05-01-2345-15-CHECKPOINT`**
 
-The following command will yield a correctly formatted date (GNU coreutils):
+The following command will yield a correctly formatted date (BSD/GNU date):
 
 **`date +%F-%H%M-%S`**
 
@@ -50,17 +50,27 @@ You can then concatenate the label.
 Example:
 
 ```
+#!/bin/sh
+
 POOL="tank"
-DATE=$(date +%F-%H%M-%S)
+DATE="$(date +%F-%H%M-%S)"
 TAG="ANIMALS"
 SNAPSHOT_NAME="${DATE}-${TAG}"
 
-zfs snapshot ${POOL}@${SNAPSHOT_NAME}
+zfs snapshot "${POOL}@${SNAPSHOT_NAME}"
 ```
 
 The above should yield a snapshot similar to the following:
 
 **`tank@2020-08-23-1023-17-ANIMALS`**
+
+The snapshot cleaner will silently skip any snapshot that doesn't
+follow this naming convention. This allows you to use the snapshot
+cleaner for simple time based snapshotting, but also allows you to
+use zfs snapshots in an out-of-band way for different use cases,
+without the cleaner annoying you that those other snapshots are in
+an invalid format (example: using poudriere jails with zfs, or just
+taking snapshots in your own format).
 
 ## Options
 
@@ -90,12 +100,9 @@ OPTIONS:
 The easiest way to build the project is to have **`cargo`** installed and run:
 **`cargo build --release`**.
 
-If you wish not to build the project yourself, you can use a pre-built one I've
-included at **`target/release/honeydew`**.
-
 ## License
 
-**`Apache License 2.0`**
+Released under the **[Simplified BSD License](LICENSE)**.
 
 ## Dependencies
 

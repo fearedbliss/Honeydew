@@ -1,10 +1,10 @@
 [package]
 name = "honeydew"
-version = "0.8.2"
+version = "1.0.0"
 authors = ["Jonathan Vasquez <jon@xyinn.org>"]
 edition = "2018"
-license = "Apache-2.0"
-description = "A simple snapshot cleaner for ZFS."
+license = "BSD-2-Clause"
+description = "A simple snapshot cleaner for OpenZFS."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

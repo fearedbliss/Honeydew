@@ -1,16 +1,27 @@
-// Copyright (C) 2020 Jonathan Vasquez <jon@xyinn.org>
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-// http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright © 2020-2022 Jonathan Vasquez <jon@xyinn.org>
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+//    notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+// OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+// HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+// OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+// SUCH DAMAGE.
 
 pub mod enums;
 pub mod structs;
@@ -33,12 +44,12 @@ const APP_NAME: &str = "Honeydew";
 const APP_VERSION: &str = clap::crate_version!();
 const APP_AUTHOR: &str = clap::crate_authors!();
 const APP_DESCRIPTION: &str = clap::crate_description!();
-const APP_LICENSE: &str = "Apache License 2.0";
+const APP_LICENSE: &str = "Simplified BSD License";
 
 // Integration Tested Only
 fn print_header() {
     println!("------------------------------");
-    println!("{} - v{}", APP_NAME, APP_VERSION);
+    println!("{} - {}", APP_NAME, APP_VERSION);
     println!("{}", APP_AUTHOR);
     println!("{}", APP_LICENSE);
     println!("------------------------------\n");
@@ -117,7 +128,7 @@ pub fn run() {
 ///
 /// This function will panic if you pass it an exclude file that does not exist.
 pub fn parse_arguments<T: Communicator>(communicator: &T) -> Config {
-    const DEFAULT_ITERATIONS: u16 = 100;
+    const DEFAULT_ITERATIONS: u32 = 100;
 
     let matches = App::new(APP_NAME)
         .version(APP_VERSION)
@@ -199,7 +210,7 @@ pub fn parse_arguments<T: Communicator>(communicator: &T) -> Config {
     let show_config = matches.is_present("show-config");
     let date = matches.value_of("date").unwrap_or("");
     let no_confirm = matches.is_present("no-confirm");
-    let iteration_count: u16 = match matches.value_of("per-iteration") {
+    let iteration_count: u32 = match matches.value_of("per-iteration") {
         Some(v) => v.parse().unwrap(),
         None => DEFAULT_ITERATIONS,
     };
@@ -289,7 +300,6 @@ fn parse_snapshot(snapshot: &str) -> Option<Snapshot> {
     let date_label_splinters: Vec<_> = initial_split[1].split("-").collect();
 
     if date_label_splinters.len() != 6 {
-        eprintln!("Snapshot is invalid. Skipping: {}", snapshot);
         return None;
     }
     let label = date_label_splinters[date_label_splinters.len() - 1];
@@ -309,12 +319,7 @@ fn parse_snapshot(snapshot: &str) -> Option<Snapshot> {
 
     let date = match Local.datetime_from_str(&date_string, SNAPSHOT_FORMAT) {
         Ok(d) => d,
-        Err(e) => {
-            eprintln!(
-                "Snapshot is invalid. Failed to parse DateTime: {}. Skipping: {}. Error: {}",
-                &date_string, snapshot, e
-            );
-
+        Err(_) => {
             return None;
         }
     };
@@ -382,8 +387,8 @@ fn build_list_to_delete(snapshots: &Vec<&Snapshot>) -> String {
 fn build_and_destroy<'a, T: Communicator>(
     communicator: &T,
     snapshots: &Vec<&'a Snapshot>,
-    numerator: f64,
-    denominator: f64,
+    numerator: u32,
+    denominator: u32,
 ) -> Vec<&'a Snapshot> {
     let deleted_snapshots = match communicator.destroy_snapshots(build_list_to_delete(&snapshots)) {
         Err(e) => panic!("{:?}", e),
@@ -422,8 +427,8 @@ fn get_cutoff_date(time: DateTime<Local>) -> DateTime<Local> {
 }
 
 /// Calculates the percentage complete
-fn calculate_percentage(numerator: f64, denominator: f64) -> f64 {
-    numerator / denominator * 100.0
+fn calculate_percentage(numerator: u32, denominator: u32) -> f32 {
+    numerator as f32 / denominator as f32 * 100.0
 }
 
 /// Destroys the ZFS snapshots.
@@ -435,24 +440,24 @@ fn calculate_percentage(numerator: f64, denominator: f64) -> f64 {
 fn destroy_snapshots<'a, T: Communicator>(
     communicator: &T,
     snapshots: &'a Vec<Snapshot>,
-    iteration_amount: u16,
+    iteration_amount: u32,
 ) -> Vec<&'a Snapshot> {
-    let mut total_processed: u16 = 0;
-    let snapshot_count = snapshots.len() as u16;
+    let mut total_processed: u32 = 0;
+    let snapshot_count = snapshots.len() as u32;
     let mut queued_snapshots: Vec<&Snapshot> = Vec::new();
     let mut deleted_snapshots: Vec<&Snapshot> = Vec::new();
 
-    let cleaner = |total_processed: &mut u16,
+    let cleaner = |total_processed: &mut u32,
                    queued_snapshots: &mut Vec<&'a Snapshot>,
                    communicator: &T,
-                   snapshot_count: u16,
+                   snapshot_count: u32,
                    deleted_snapshots: &mut Vec<&'a Snapshot>| {
-        *total_processed += queued_snapshots.len() as u16;
+        *total_processed += queued_snapshots.len() as u32;
         build_and_destroy(
             communicator,
             &queued_snapshots,
-            *total_processed as f64,
-            snapshot_count as f64,
+            *total_processed,
+            snapshot_count,
         );
         deleted_snapshots.append(queued_snapshots);
     };
@@ -473,7 +478,7 @@ fn destroy_snapshots<'a, T: Communicator>(
         // never fire. This is by design.
         for snapshot in snapshots_for_dataset.iter() {
             queued_snapshots.push(snapshot);
-            if queued_snapshots.len() as u16 % iteration_amount == 0 {
+            if queued_snapshots.len() as u32 % iteration_amount == 0 {
                 cleaner(
                     &mut total_processed,
                     &mut queued_snapshots,
@@ -736,9 +741,9 @@ mod tests {
 
     #[test]
     fn calculate_percentage_test() {
-        let numerator = 1.0;
-        let denominator = 10.0;
-        let expected = numerator / denominator * 100.0;
+        let numerator: u32 = 42;
+        let denominator: u32 = 20000000;
+        let expected: f32 = 0.00021000001;
         assert_eq!(expected, calculate_percentage(numerator, denominator));
     }
 

@@ -1,4 +1,1 @@
 /target/*
-!/target/release
-/target/release/*
-!/target/release/honeydew
