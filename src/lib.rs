@@ -320,6 +320,7 @@ fn parse_snapshot(snapshot: &str) -> Option<Snapshot> {
     let date = match Local.datetime_from_str(&date_string, SNAPSHOT_FORMAT) {
         Ok(d) => d,
         Err(_) => {
+            println!("[Warning] Invalid Time Format. Skipping: {}", snapshot);
             return None;
         }
     };
@@ -329,14 +330,10 @@ fn parse_snapshot(snapshot: &str) -> Option<Snapshot> {
 
 fn get_parsed_snapshots(unparsed_snapshots: Vec<String>) -> Vec<Snapshot> {
     let mut parsed_snapshots: Vec<Snapshot> = Vec::new();
-
     for us in unparsed_snapshots {
-        let ps = match parse_snapshot(&us) {
-            None => continue,
-            Some(s) => s,
-        };
-
-        parsed_snapshots.push(ps);
+        if let Some(parsed_snapshot) = parse_snapshot(&us) {
+            parsed_snapshots.push(parsed_snapshot);
+        }
     }
     parsed_snapshots
 }
@@ -523,48 +520,27 @@ fn destroy_snapshots<'a, T: Communicator>(
 mod tests {
     use super::*;
     use testing::utility;
-    use testing::utility::{create_snapshot, FakeCommunicator};
 
-    #[test]
-    fn get_parsed_snapshots_test() {
-        let unparsed_snapshots = vec![
-            "boot@2020-08-12-1237-49-CHECKPOINT".to_string(),
-            "backup/tank/gentoo/home@2020-07-13-2354-09-CHECKPOINT".to_string(),
-            "tank/gentoo/os@2020-08-13-2354-09-CHECKPOINT".to_string(),
-            "tank@lol".to_string(),
-        ];
-
-        let expected_snapshots = vec![
-            create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
-            create_snapshot(
-                "backup/tank/gentoo/home",
-                "2020-07-13-2354-09",
-                "CHECKPOINT",
-            ),
-            create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
-        ];
-
-        let result = get_parsed_snapshots(unparsed_snapshots);
-        assert_eq!(expected_snapshots, result);
-    }
     #[test]
     fn get_stale_snapshots_test() {
         let snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-09-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/tmp", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/poudriere", "2020-08-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-09-13-2354-09", "CHECKPOINT"),
         ];
 
         let cutoff_date = Local.ymd(2020, 09, 10).and_hms(0, 0, 0);
 
         let expected_snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/tmp", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/poudriere", "2020-08-13-2354-09", "CHECKPOINT"),
         ];
+
         let stale_snapshots = get_stale_snapshots(snapshots, &cutoff_date);
 
         assert_eq!(expected_snapshots, stale_snapshots);
     }
+
     #[test]
     fn parse_snapshot_should_return_none() {
         let snapshot = "boot@lol";
@@ -573,43 +549,50 @@ mod tests {
 
         assert_eq!(None, result);
     }
+
     #[test]
-    fn parse_snapshot_should_return_snapshot_struct() {
-        let snapshot = "boot@2020-08-12-1237-49-CHECKPOINT";
-        let expected_snapshot = Snapshot::new(
-            "boot",
-            "boot",
-            Local
-                .datetime_from_str("2020-08-12-1237-49", SNAPSHOT_FORMAT)
-                .unwrap(),
-            "CHECKPOINT",
-        );
+    fn get_parsed_snapshots_should_return_snapshots() {
+        let snapshots: Vec<String> = [
+            "elephants/in/space@2022-12-31-0000-00-CHECKPOINT",
+            "boot@2020-08-12-1237-49-CHECKPOINT",
+            "boot@2020-08-12-1237-49-CHECKPOINT",
+            "tank/tmp@2020-08-12-1237-49-CHECKPOINT",
+            "tank/poudriere@2020-08-12-1237-49-CHECKPOINT",
+            "tank/os/main@2020-08-12-1237-49-CHECKPOINT",
+            "tank/os/main@2022-10-09-1234-60-CHECKPOINT",
+        ]
+        .iter()
+        .map(|&name| String::from(name))
+        .collect();
 
-        let result = parse_snapshot(&snapshot).unwrap();
+        let expected_snapshots: Vec<Snapshot> = snapshots
+            .iter()
+            .map(|snapshot| utility::create_snapshot_from_string(&snapshot))
+            .collect();
 
-        assert_eq!(expected_snapshot.pool(), result.pool());
-        assert_eq!(expected_snapshot.dataset(), result.dataset());
-        assert_eq!(expected_snapshot.date(), result.date());
-        assert_eq!(expected_snapshot.label(), result.label());
+        let result_snapshots = get_parsed_snapshots(snapshots.clone());
+
+        assert_eq!(result_snapshots.len(), 7);
+        assert_eq!(result_snapshots, expected_snapshots);
     }
 
     #[test]
     fn get_snapshots_for_should_filter_correctly() {
         let initial_snapshots = vec![
-            create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
-            create_snapshot(
+            utility::create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
+            utility::create_snapshot(
                 "backup/tank/gentoo/home",
                 "2020-07-13-2354-09",
                 "CHECKPOINT",
             ),
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "LOL"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "LOL"),
         ];
 
         let expected_snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-08-13-2354-09", "CHECKPOINT"),
         ];
 
         assert_eq!(
@@ -629,18 +612,22 @@ mod tests {
 
         assert_eq!(
             expected_snapshots,
-            get_snapshots(&FakeCommunicator::new(true))
+            get_snapshots(&utility::FakeCommunicator::new(true))
         );
     }
 
     #[test]
     fn get_excluded_snapshots_test() {
-        let expected_snapshots = vec![create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT")];
+        let expected_snapshots = vec![utility::create_snapshot(
+            "boot",
+            "2020-08-12-1237-49",
+            "CHECKPOINT",
+        )];
 
         assert_eq!(
             expected_snapshots,
             get_excluded_snapshots(
-                &FakeCommunicator::new(true),
+                &utility::FakeCommunicator::new(true),
                 &utility::get_fake_config("boot", "2020-05-01-1200-00", "")
             )
         );
@@ -666,11 +653,11 @@ mod tests {
         }
 
         let excluded_snapshots = vec![
-            create_snapshot("tank/gentoo/home", "2020-04-25-1300-15", "CHECKPOINT"), // older but excluded
+            utility::create_snapshot("tank/gentoo/home", "2020-04-25-1300-15", "CHECKPOINT"), // older but excluded
         ];
         let expected_snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
-            create_snapshot("tank", "2020-01-01-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
+            utility::create_snapshot("tank", "2020-01-01-2354-09", "CHECKPOINT"),
         ];
         let relevant_snapshots = get_relevant_snapshots(
             &FakeCommunicator,
@@ -683,22 +670,22 @@ mod tests {
     #[test]
     fn remove_excluded_snapshots_test() {
         let snapshots = vec![
-            create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/home", "2020-04-25-1300-15", "CHECKPOINT"),
-            create_snapshot("tank", "2020-01-01-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/home", "2020-04-25-1300-15", "CHECKPOINT"),
+            utility::create_snapshot("tank", "2020-01-01-2354-09", "CHECKPOINT"),
         ];
 
         let excluded_snapshots = vec![
-            create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/home", "2020-04-25-1300-15", "CHECKPOINT"),
-            create_snapshot("tank", "2020-01-01-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("boot", "2020-08-12-1237-49", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/home", "2020-04-25-1300-15", "CHECKPOINT"),
+            utility::create_snapshot("tank", "2020-01-01-2354-09", "CHECKPOINT"),
         ];
 
         let expected_snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
         ];
 
         assert_eq!(
@@ -710,9 +697,9 @@ mod tests {
     #[test]
     fn build_list_to_delete_test() {
         let snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
-            create_snapshot("tank/gentoo/os", "2020-09-05-1300-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-05-01-1100-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-09-05-1300-00", "CHECKPOINT"),
         ];
         let references = snapshots.iter().collect();
         let expected_result = "tank/gentoo/os@2020-07-13-2354-09-CHECKPOINT,2020-05-01-1100-00-CHECKPOINT,2020-09-05-1300-00-CHECKPOINT";
@@ -722,10 +709,10 @@ mod tests {
     #[test]
     fn get_datasets_test() {
         let snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/lol", "2020-05-01-1100-00", "CHECKPOINT"),
-            create_snapshot("tank/home", "2020-09-05-1300-00", "CHECKPOINT"),
-            create_snapshot("tank/home", "2020-09-05-1310-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/lol", "2020-05-01-1100-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/home", "2020-09-05-1300-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/home", "2020-09-05-1310-00", "CHECKPOINT"),
         ];
 
         let expected_result: HashSet<String> = vec![
@@ -750,14 +737,14 @@ mod tests {
     #[test]
     fn destroy_snapshots_test() {
         let snapshots = vec![
-            create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
-            create_snapshot("tank/lol", "2020-05-01-1100-00", "CHECKPOINT"),
-            create_snapshot("tank/home", "2020-09-05-1300-00", "CHECKPOINT"),
-            create_snapshot("tank/home", "2020-09-05-1310-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/gentoo/os", "2020-07-13-2354-09", "CHECKPOINT"),
+            utility::create_snapshot("tank/lol", "2020-05-01-1100-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/home", "2020-09-05-1300-00", "CHECKPOINT"),
+            utility::create_snapshot("tank/home", "2020-09-05-1310-00", "CHECKPOINT"),
         ];
 
         let mut expected_results: Vec<&Snapshot> = snapshots.iter().collect();
-        let mut results = destroy_snapshots(&FakeCommunicator::new(true), &snapshots, 100);
+        let mut results = destroy_snapshots(&utility::FakeCommunicator::new(true), &snapshots, 100);
 
         expected_results.sort();
         results.sort();

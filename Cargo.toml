@@ -1,6 +1,6 @@
 [package]
 name = "honeydew"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Jonathan Vasquez <jon@xyinn.org>"]
 edition = "2018"
 license = "BSD-2-Clause"

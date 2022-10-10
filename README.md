@@ -1,4 +1,4 @@
-## Honeydew - 1.0.0
+## Honeydew - 1.0.1
 ##### Jonathan Vasquez (fearedbliss)
 
 ## Description
@@ -70,7 +70,10 @@ cleaner for simple time based snapshotting, but also allows you to
 use zfs snapshots in an out-of-band way for different use cases,
 without the cleaner annoying you that those other snapshots are in
 an invalid format (example: using poudriere jails with zfs, or just
-taking snapshots in your own format).
+taking snapshots in your own format). You will only receive a warning
+if your snapshot appears to be in the correct format but has an invalid
+date/time. For example, **`tank@2022-10-09-2207-61-ANIMALS`** appears to
+be correct, but has a seconds count of 61.
 
 ## Options
 

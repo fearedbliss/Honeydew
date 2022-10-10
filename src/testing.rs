@@ -77,4 +77,25 @@ pub mod utility {
 
         Snapshot::new(pool, dataset, date, label)
     }
+
+    pub fn create_snapshot_from_string(snapshot: &str) -> Snapshot {
+        let splinters: Vec<_> = snapshot.split("@").collect();
+        let rsplinters: Vec<_> = splinters[1].split("-").collect();
+        let dataset = splinters[0];
+        let lsplinters: Vec<_> = dataset.split("/").collect();
+
+        let pool = lsplinters[0];
+        let date = format!(
+            "{}-{}-{}-{}-{}",
+            rsplinters[0], rsplinters[1], rsplinters[2], rsplinters[3], rsplinters[4]
+        );
+        let label = rsplinters[5];
+
+        Snapshot::new(
+            pool,
+            dataset,
+            Local.datetime_from_str(&date, SNAPSHOT_FORMAT).unwrap(),
+            label,
+        )
+    }
 }

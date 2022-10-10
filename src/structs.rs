@@ -148,7 +148,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct Snapshot {
     pool: String,
     dataset: String,
@@ -202,6 +202,18 @@ impl Snapshot {
 }
 
 impl fmt::Display for Snapshot {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}@{}-{}",
+            self.dataset,
+            self.date.format(SNAPSHOT_FORMAT).to_string(),
+            self.label
+        )
+    }
+}
+
+impl fmt::Debug for Snapshot {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
